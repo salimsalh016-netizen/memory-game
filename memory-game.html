@@ -1,0 +1,325 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لعبة الذاكرة 🧠</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    color: #fff;
+  }
+  h1 {
+    font-size: 2.2rem;
+    margin-bottom: 15px;
+    text-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  .stats {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .stat-box {
+    background: rgba(255,255,255,.15);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 10px 20px;
+    text-align: center;
+    min-width: 90px;
+    border: 1px solid rgba(255,255,255,.25);
+  }
+  .stat-box .label { font-size: .85rem; opacity: .85; }
+  .stat-box .value { font-size: 1.5rem; font-weight: bold; }
+  .levels { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+  .level-btn {
+    background: rgba(255,255,255,.15);
+    border: 2px solid rgba(255,255,255,.3);
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: 25px;
+    font-size: 1rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .25s;
+  }
+  .level-btn:hover { background: rgba(255,255,255,.3); transform: translateY(-2px); }
+  .level-btn.active {
+    background: #fff;
+    color: #764ba2;
+    border-color: #fff;
+    font-weight: bold;
+  }
+  #board {
+    display: grid;
+    gap: 12px;
+    perspective: 1000px;
+    margin-bottom: 20px;
+  }
+  .card {
+    width: var(--card-size);
+    height: var(--card-size);
+    position: relative;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transition: transform .4s;
+  }
+  .card.flipped, .card.matched { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    font-size: calc(var(--card-size) * .5);
+    user-select: none;
+  }
+  .card-front {
+    background: linear-gradient(145deg, #4a5fc1, #5d3a9e);
+    border: 2px solid rgba(255,255,255,.35);
+  }
+  .card-front::after { content: "❓"; opacity: .9; }
+  .card-back {
+    background: #fff;
+    transform: rotateY(180deg);
+  }
+  .card.matched .card-back {
+    background: #d4f7d4;
+    animation: pop .4s ease;
+  }
+  @keyframes pop {
+    0% { transform: rotateY(180deg) scale(1); }
+    50% { transform: rotateY(180deg) scale(1.12); }
+    100% { transform: rotateY(180deg) scale(1); }
+  }
+  .card.wrong .card-back { background: #ffd6d6; }
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .overlay.show { display: flex; }
+  .win-box {
+    background: #fff;
+    color: #333;
+    border-radius: 20px;
+    padding: 35px 45px;
+    text-align: center;
+    animation: rise .5s ease;
+    max-width: 90vw;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+  .win-box h2 { font-size: 2rem; margin-bottom: 12px; }
+  .win-box p { margin-bottom: 8px; font-size: 1.1rem; }
+  .win-box .emoji-big { font-size: 4rem; }
+  #playAgain {
+    margin-top: 18px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+    padding: 13px 35px;
+    border-radius: 30px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform .2s;
+  }
+  #playAgain:hover { transform: scale(1.06); }
+  #resetBtn {
+    background: rgba(255,255,255,.2);
+    border: 2px solid rgba(255,255,255,.4);
+    color: #fff;
+    padding: 10px 30px;
+    border-radius: 25px;
+    font-size: 1rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #resetBtn:hover { background: rgba(255,255,255,.35); }
+  .foot { margin-top: 15px; opacity: .8; font-size: .9rem; }
+  @media (max-width: 500px) {
+    h1 { font-size: 1.5rem; }
+    .card { --card-size: 70px !important; }
+  }
+</style>
+</head>
+<body>
+  <h1>🧠 لعبة الذاكرة</h1>
+
+  <div class="stats">
+    <div class="stat-box"><div class="label">⏱️ الوقت</div><div class="value" id="timer">0</div></div>
+    <div class="stat-box"><div class="label">🔄 المحاولات</div><div class="value" id="moves">0</div></div>
+    <div class="stat-box"><div class="label">✅ الأزواج</div><div class="value" id="pairs">0/0</div></div>
+    <div class="stat-box"><div class="label">🏆 أفضل نتيجة</div><div class="value" id="best">—</div></div>
+  </div>
+
+  <div class="levels">
+    <button class="level-btn" data-cols="4" data-pairs="8">سهل (4×4)</button>
+    <button class="level-btn active" data-cols="5" data-pairs="10">متوسط (5×4)</button>
+    <button class="level-btn" data-cols="6" data-pairs="12">صعب (6×4)</button>
+    <button id="resetBtn">🔁 إعادة اللعب</button>
+  </div>
+
+  <div id="board"></div>
+
+  <div class="overlay" id="overlay">
+    <div class="win-box">
+      <div class="emoji-big">🎉</div>
+      <h2>مبروك! كملت اللعبة</h2>
+      <p id="finalStats"></p>
+      <p id="recordMsg" style="color:#27ae60;font-weight:bold;"></p>
+      <button id="playAgain">العب تاني 🎮</button>
+    </div>
+  </div>
+
+  <div class="foot">اقلب البطاقتين المتشابهتين وكسبت! 💪</div>
+
+<script>
+const emojis = ["🍎","🍊","🍇","🍓","🍌","🍉","🍒","🥝","🍍","🥑","🍑","🥕","🌽","🍔","🍕","🍩","⚽","🏀","🎯","🎲","🚗","✈️","🚀","🌻"];
+
+const boardEl = document.getElementById("board");
+const timerEl = document.getElementById("timer");
+const movesEl = document.getElementById("moves");
+const pairsEl = document.getElementById("pairs");
+const bestEl = document.getElementById("best");
+const overlay = document.getElementById("overlay");
+const finalStats = document.getElementById("finalStats");
+const recordMsg = document.getElementById("recordMsg");
+
+let cols = 5, totalPairs = 10;
+let firstCard = null, secondCard = null, lock = false;
+let moves = 0, matched = 0, seconds = 0, timerId = null, started = false, gameOver = false;
+
+const levelBestKeys = { 8: "memBest8", 10: "memBest10", 12: "memBest12" };
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function setCardSize() {
+  const size = window.innerWidth <= 500 ? 70 : Math.min(100, Math.floor((window.innerWidth - 60) / cols) - 8);
+  document.documentElement.style.setProperty("--card-size", size + "px");
+}
+
+function startTimer() {
+  if (started) return;
+  started = true;
+  timerId = setInterval(() => { seconds++; timerEl.textContent = seconds; }, 1000);
+}
+
+function updateBest() {
+  const b = localStorage.getItem(levelBestKeys[totalPairs]);
+  bestEl.textContent = b ? b + " ث" : "—";
+}
+
+function buildGame() {
+  clearInterval(timerId);
+  seconds = 0; moves = 0; matched = 0;
+  firstCard = secondCard = null; lock = false;
+  started = false; gameOver = false;
+  timerEl.textContent = "0"; movesEl.textContent = "0";
+  pairsEl.textContent = "0/" + totalPairs;
+  overlay.classList.remove("show");
+  updateBest();
+  setCardSize();
+
+  const chosen = shuffle([...emojis]).slice(0, totalPairs);
+  const deck = shuffle([...chosen, ...chosen]);
+
+  boardEl.style.gridTemplateColumns = `repeat(${cols}, var(--card-size))`;
+  boardEl.innerHTML = "";
+
+  deck.forEach((emoji) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.emoji = emoji;
+    card.innerHTML = `<div class="card-face card-front"></div><div class="card-face card-back">${emoji}</div>`;
+    card.addEventListener("click", () => flip(card));
+    boardEl.appendChild(card);
+  });
+}
+
+function flip(card) {
+  if (lock || gameOver) return;
+  if (card.classList.contains("flipped") || card.classList.contains("matched")) return;
+  startTimer();
+  card.classList.add("flipped");
+
+  if (!firstCard) { firstCard = card; return; }
+  secondCard = card;
+  lock = true;
+  moves++;
+  movesEl.textContent = moves;
+
+  if (firstCard.dataset.emoji === secondCard.dataset.emoji) {
+    // 👍 وجدنا زوج!
+    firstCard.classList.add("matched");
+    secondCard.classList.add("matched");
+    firstCard = null; secondCard = null; lock = false;
+    matched++;
+    pairsEl.textContent = matched + "/" + totalPairs;
+    if (matched === totalPairs) win();
+  } else {
+    // ❌ مش زوج — ارجعهم بعد شوية
+    firstCard.classList.add("wrong");
+    secondCard.classList.add("wrong");
+    setTimeout(() => {
+      firstCard.classList.remove("flipped", "wrong");
+      secondCard.classList.remove("flipped", "wrong");
+      firstCard = null; secondCard = null; lock = false;
+    }, 750);
+  }
+}
+
+function win() {
+  gameOver = true;
+  clearInterval(timerId);
+  finalStats.textContent = `⏱️ الوقت: ${seconds} ثانية — 🔄 المحاولات: ${moves}`;
+  const key = levelBestKeys[totalPairs];
+  const b = localStorage.getItem(key);
+  if (!b || seconds < +b) {
+    localStorage.setItem(key, seconds);
+    recordMsg.textContent = "🏆 رقم قياسي جديد!";
+  } else {
+    recordMsg.textContent = `🏆 أفضل نتيجة ليك: ${b} ثانية`;
+  }
+  setTimeout(() => overlay.classList.add("show"), 500);
+}
+
+document.querySelectorAll(".level-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".level-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    cols = +btn.dataset.cols;
+    totalPairs = +btn.dataset.pairs;
+    buildGame();
+  });
+});
+
+document.getElementById("resetBtn").addEventListener("click", buildGame);
+document.getElementById("playAgain").addEventListener("click", buildGame);
+window.addEventListener("resize", setCardSize);
+
+buildGame();
+</script>
+</body>
+</html>
